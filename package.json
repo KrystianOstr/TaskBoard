@@ -1,0 +1,16 @@
+{
+  "name": "taskboard-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight task management web application with container health endpoints",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test",
+    "test:ci": "node --test"
+  },
+  "license": "UNLICENSED"
+}
