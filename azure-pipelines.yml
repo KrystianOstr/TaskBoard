@@ -1,19 +1,68 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  - main
+
+pr:
+  - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+stages:
+  - stage: CI
+    jobs:
+      - job: ApplicationTests
+        steps:
+          - checkout: self
+            displayName: Repo checkout
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+          - task: UseNode@1
+            inputs:
+              versionSource: "spec"
+              version: "24.x"
+            displayName: Configure Node.js
+
+          - script: npm test
+            displayName: Run tests
+
+      - job: ContainerValidation
+        dependsOn: ApplicationTests
+        steps:
+          - checkout: self
+            displayName: Repo checkout
+
+          - task: Docker@2
+            inputs:
+              command: build
+              repository: taskboard
+              Dockerfile: "$(Build.SourcesDirectory)/Dockerfile"
+              buildContext: "$(Build.SourcesDirectory)"
+              tags: "$(Build.BuildId)"
+            displayName: Build the image
+
+          - script: docker images
+            displayName: Check for image
+
+          - script: docker run -d --name taskboard -p 8080:8080 taskboard:"$(Build.BuildId)"
+            displayName: Start application container
+
+          - script: docker ps -a
+
+          - script: |
+              for attempt in {1..10}; do
+                if status=$(curl -s -o /dev/null -w "%{http_code}" \
+                  --max-time 3 http://localhost:8080/health) &&
+                  [[ "$status" == "200" ]]; then
+                  echo "Service is available"
+                  exit 0
+                fi
+
+                echo "Attempt $attempt failed"
+                sleep 2
+              done
+
+              exit 1
+            displayName: Validate service availability
+
+          - script: docker rm -f taskboard
+            displayName: Remove temporary container
+            condition: always()
