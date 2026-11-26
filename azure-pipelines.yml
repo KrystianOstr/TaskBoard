@@ -41,3 +41,26 @@ stages:
 
           - script: docker images
             displayName: Check for image
+
+          - script: docker run -d --name taskboard -p 8080:8080 taskboard:"$(Build.BuildId)"
+            displayName: Start application container
+
+          - script: |
+              for attempt in {1..10}; do
+                if status=$(curl -s -o /dev/null -w "%{http_code}" \
+                  --max-time 3 http://localhost:9090/status) &&
+                  [[ "$status" == "200" ]]; then
+                  echo "Service is available"
+                  exit 0
+                fi
+
+                echo "Attempt $attempt failed"
+                sleep 2
+              done
+
+              exit 1
+            displayName: Validate service availability
+
+          - script: docker rm -f taskboard
+            displayName: Remove temporary container
+            condition: always()
