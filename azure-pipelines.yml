@@ -9,7 +9,6 @@ pool:
 
 stages:
   - stage: CI
-
     jobs:
       - job: ApplicationTests
         steps:
@@ -24,3 +23,21 @@ stages:
 
           - script: npm test
             displayName: Run tests
+
+      - job: ContainerValidation
+        dependsOn: ApplicationTests
+        steps:
+          - checkout: self
+            displayName: Repo checkout
+
+          - task: Docker@2
+            inputs:
+              command: build
+              repository: taskboard
+              Dockerfile: "$(Build.SourcesDirectory)/Dockerfile"
+              buildContext: "$(Build.SourcesDirectory)"
+              tags: "$(Build.BuildId)"
+            displayName: Build the image
+
+          - script: docker images
+            displayName: Check for image
