@@ -1,0 +1,28 @@
+trigger: none
+
+pr: none
+
+pool:
+  vmImage: ubuntu-24.04
+
+stages:
+  - stage: Validation
+    jobs:
+      - job: AzureConnectivity
+        steps:
+          - task: AzureCLI@2
+            displayName: Verify Azure connectivity
+            inputs:
+              azureSubscription: "sc-taskboard-infra"
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az account show
+                az group show --name rg-taskboard-shared
+                az group show --name rg-taskboard-dev
+                az group show --name rg-taskboard-test
+                az storage blob list \
+                  --account-name satfstate785436 \
+                  --container-name taskboard \
+                  --auth-mode login
